@@ -26,7 +26,7 @@ Github is having anti-DDoS protection, so if you are going to scrape them very o
 operator:
   config:
     scrape:
-      githubTokenSecret: "" # Name of existing secret in operator's namespace
+      githubTokenSecret: "" # Name of existing secret in operator's namespace (key: GITHUB_TOKEN)
 ```
 
 ### Slack
@@ -38,7 +38,7 @@ operator:
   config:
     slack:
       enabled: true
-      webhookUrlSecret: "" # Name of existing secret in operator's namespace
+      webhookUrlSecret: "" # Name of existing secret in operator's namespace (key: SLACK_WEBHOOK_URL)
 ```
 
 ## Usage
