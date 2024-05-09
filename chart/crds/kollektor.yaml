@@ -1,0 +1,115 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.1
+  name: kollektors.kollektor.pannoi
+spec:
+  group: kollektor.pannoi
+  names:
+    kind: Kollektor
+    listKind: KollektorList
+    plural: kollektors
+    singular: kollektor
+    shortNames:
+      - kol
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    additionalPrinterColumns:
+    - name: Current
+      type: string
+      description: Current deployed version
+      jsonPath: .status.current
+    - name: Latest
+      type: string
+      description: Latest release version
+      jsonPath: .status.latest
+    - name: Is Latest
+      type: string
+      description: Is latest image is deployed
+      jsonPath: .status.isLatest
+    schema:
+      openAPIV3Schema:
+        description: Kollektor is the Schema for the kollektors API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KollektorSpec defines the desired state of Kollektor
+            properties:
+              source:
+                type: object
+                required:
+                - repo
+                properties:
+                  repo:
+                    type: string
+                  chartRepo:
+                    type: string
+              resource:
+                type: object
+                required:
+                - name
+                - type
+                properties:
+                  name:
+                    type: string
+                  type:
+                    type: string
+                  containerName:
+                    type: string
+            required:
+            - source
+            - resource
+            type: object
+          status:
+            description: KollektorStatus defines the observed state of Kollektor
+            type: object
+            properties:
+              current:
+                description: Current deployed version.
+                type: string
+              latest:
+                description: Latest released version.
+                type: string
+              isLatest:
+                description: Is current version matching latest version.
+                type: string
+              conditions:
+                description: The current state of the Kollektor deployment.
+                type: array
+                items:
+                  type: object
+                  properties:
+                    lastTransitionTime: 
+                      description: delastTransitionTime is the time of the last update to the current status property.
+                      type: string
+                    message:
+                      description: message is the human-readable message indicating details about last transition.
+                      type: string
+                    reason:
+                      description: Reason why failed or succede
+                      type: string
+                    type:
+                      description: describes failed or not
+                      type: string
+                    status:
+                      type: string
+                      description: Status of the condition.
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

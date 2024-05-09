@@ -1,0 +1,13 @@
+domain: pannoi
+projectName: kollektor
+repo: kollektor
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: pannoi
+  kind: Kollektor
+  path: kollektor/api/v1alpha1
+  version: v1alpha1
+version: "3"

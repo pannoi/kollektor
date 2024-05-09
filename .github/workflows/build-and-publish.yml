@@ -1,0 +1,58 @@
+name: Build image and publish chart
+run-name: Build
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  IMAGE_NAME: pannoi/kollektor
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Auth docker hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+
+      - name: Build and  push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  Publish:
+    runs-on: dtzar/helm-kubectl:3.9.1
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      
+      - name: Configure Git
+        run: |
+          git config user.name "pannoi"
+
+      - name: Package helm and publish
+        run: |
+          helm package chart/
+          git clone https://github.com/pannoi/kollektor-helm.git
+          mv kollektor-${{ steps.meta.outputs.tags }}.tgz kollektor-helm 
+          helm repo index kollektor-helm
+          cd kollektor-helm
+          git add .
+          git commit -m "chore: upd version ${{ steps.meta.outputs.tags }}"
+          git push

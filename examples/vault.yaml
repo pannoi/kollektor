@@ -1,0 +1,12 @@
+apiVersion: kollektor.pannoi/v1alpha1
+kind: Kollektor
+metadata:
+  name: vault
+spec:
+  source:
+    repo: https://github.com/hashicorp/vault
+    chartRepo: https://artifacthub.io/packages/helm/hashicorp/vault
+  resource:
+    type: statefulset
+    name: vault
+    # containerName: ""

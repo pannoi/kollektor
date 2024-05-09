@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubernetes.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  revisionHistoryLimit: {{ .Values.operator.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "kubernetes.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubernetes.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: "{{ .Release.Name }}-service-account"
+      containers:
+        - name: {{ .Release.Name}}
+          image: "{{ .Values.operator.image }}:{{ .Values.operator.version }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SCRAPE_INTERVAL
+              value: {{ .Values.operator.config.scrape.interval }}
+            {{- if .Values.operator.config.scrape.githubToken ne "" -}}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.operator.config.scrape.githubTokenSecret }}
+                  key: GITHUB_TOKEN
+            {{- end }}
+            {{- if .Values.operator.config.slack.enabled}}
+            - name: SLACK_INTEGRATION_ENABLED
+              value: "true"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.operator.config.slack.webhookUrlSecret }}
+                  key: SLACK_WEBHOOK_URL
+            {{- else }}
+            - name: SLACK_INTEGRATION_ENABLED
+              value: "false"
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 65532
+              protocol: TCP
