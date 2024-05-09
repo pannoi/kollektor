@@ -12,7 +12,7 @@ RUN go mod download
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/
-COPY controller/ controller/
+COPY controllers/ controllers/
 
 # Build
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager main.go
