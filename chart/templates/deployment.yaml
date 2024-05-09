@@ -24,7 +24,7 @@ spec:
           env:
             - name: SCRAPE_INTERVAL
               value: {{ .Values.operator.config.scrape.interval }}
-            {{- if .Values.operator.config.scrape.githubToken ne "" -}}
+            {{- if ne .Values.operator.config.scrape.githubToken "" }}
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
