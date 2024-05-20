@@ -291,11 +291,12 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if !strings.HasPrefix(projectReleaseUrl, "https://") {
 			projectReleaseUrl = "https://" + projectReleaseUrl
 		}
-		projectReleaseTitle := fmt.Sprintf("🚀 <%s|New Release> of %s | %s => %s !🚀",
+		projectReleaseTitle := fmt.Sprintf("🚀 <%s|New Release> of %s | %s => %s in cluster: %s!🚀",
 			projectReleaseUrl,
 			kollektor.Name,
 			imageVersion,
 			ossVersion,
+			os.Getenv("CLUSTER_NAME"),
 		)
 		projectReleaseText := fmt.Sprintf("Release notes: %s", releaseNotes)
 		err = utils.SendSlackMessage(os.Getenv("SLACK_WEBHOOK_URL"), projectReleaseTitle, projectReleaseText)
@@ -308,11 +309,12 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				log.Error(err, "Failed to gather release notes for "+kollektor.Name)
 				return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, nil
 			}
-			chartReleaseTitle := fmt.Sprintf("📒 <%s|New Helm Chart Release> of %s | %s => %s !📒",
+			chartReleaseTitle := fmt.Sprintf("📒 <%s|New Helm Chart Release> of %s | %s => %s in cluster: %s!📒",
 				chartReleaseUrl,
 				kollektor.Name,
 				chartVerion,
 				chartLabelVersion,
+				os.Getenv("CLUSTER_NAME"),
 			)
 			chartReleaseText := fmt.Sprintf("Release notes: %s", chartReleaseNotes)
 			err = utils.SendSlackMessage(os.Getenv("SLACK_WEBHOOK_URL"), chartReleaseTitle, chartReleaseText)

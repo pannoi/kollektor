@@ -32,6 +32,8 @@ spec:
                   key: GITHUB_TOKEN
             {{- end }}
             {{- if .Values.operator.config.slack.enabled}}
+            - name: CLUSTER_NAME
+              value: {{ .Values.operator.config.slack.clusterName }}
             - name: SLACK_INTEGRATION_ENABLED
               value: "true"
             - name: SLACK_WEBHOOK_URL
