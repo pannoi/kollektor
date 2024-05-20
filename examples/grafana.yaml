@@ -1,0 +1,11 @@
+apiVersion: kollektor.pannoi/v1alpha1
+kind: Kollektor
+metadata:
+  name: grafana
+spec:
+  source:
+    repo: https://github.com/grafana/grafana
+    chartRepo: https://artifacthub.io/packages/helm/grafana/grafana
+  resource:
+    type: deployment
+    name: grafana

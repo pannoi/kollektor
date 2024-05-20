@@ -47,10 +47,18 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		Type:   "Init Scan",
 	}
 	kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
+	if len(kollektor.Status.Conditions) > 3 {
+		kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
+	}
 	kollektor.Status.IsLatest = "Unknown"
 	err = r.Status().Update(ctx, kollektor)
 	if err != nil {
 		log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
+	}
+
+	if kollektor.Spec.Source.Repo == "" {
+		log.Info("Source repo cannot be nil")
+		return ctrl.Result{Requeue: false}, err
 	}
 
 	ossVersion, err := utils.GetProjectVersion(kollektor.Spec.Source.Repo)
@@ -59,9 +67,11 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		conditions = metav1.Condition{
 			Status: "False",
 			Type:   "Failed",
-			Reason: err.Error(),
 		}
 		kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
+		if len(kollektor.Status.Conditions) > 3 {
+			kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
+		}
 		kollektor.Status.IsLatest = "Unknown"
 		err = r.Status().Update(ctx, kollektor)
 		if err != nil {
@@ -84,9 +94,11 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			conditions = metav1.Condition{
 				Status: "False",
 				Type:   "Failed",
-				Reason: err.Error(),
 			}
 			kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
+			if len(kollektor.Status.Conditions) > 3 {
+				kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
+			}
 			kollektor.Status.IsLatest = "Unknown"
 			err = r.Status().Update(ctx, kollektor)
 			if err != nil {
@@ -102,6 +114,9 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		Type:   "Version gathered: " + ossVersion,
 	}
 	kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
+	if len(kollektor.Status.Conditions) > 3 {
+		kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
+	}
 	kollektor.Status.IsLatest = "Unknown"
 	err = r.Status().Update(ctx, kollektor)
 	if err != nil {
@@ -113,43 +128,43 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	switch strings.ToLower(kollektor.Spec.Resource.Type) {
 	case "statefulset":
-		sts := appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: kollektor.Spec.Resource.Name}}
-		err = r.Get(ctx, req.NamespacedName, &sts)
+		sts := appsv1.StatefulSet{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace, Name: kollektor.Spec.Resource.Name}, &sts)
 		if chartScan {
 			labels = sts.Spec.Template.Labels
 		}
 		container = sts.Spec.Template.Spec.Containers
 	case "daemonset":
-		ds := appsv1.DaemonSet{ObjectMeta: metav1.ObjectMeta{Name: kollektor.Spec.Resource.Name}}
-		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace}, &ds)
+		ds := appsv1.DaemonSet{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace, Name: kollektor.Spec.Resource.Name}, &ds)
 		if chartScan {
 			labels = ds.Spec.Template.Labels
 		}
 		container = ds.Spec.Template.Spec.Containers
 	case "deployment":
-		dep := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: kollektor.Spec.Resource.Name}}
-		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace}, &dep)
+		dep := appsv1.Deployment{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace, Name: kollektor.Spec.Resource.Name}, &dep)
 		if chartScan {
 			labels = dep.Spec.Template.Labels
 		}
 		container = dep.Spec.Template.Spec.Containers
 	case "replicaset":
-		rs := appsv1.ReplicaSet{ObjectMeta: metav1.ObjectMeta{Name: kollektor.Spec.Resource.Name}}
-		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace}, &rs)
+		rs := appsv1.ReplicaSet{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace, Name: kollektor.Spec.Resource.Name}, &rs)
 		if chartScan {
 			labels = rs.Spec.Template.Labels
 		}
 		container = rs.Spec.Template.Spec.Containers
 	case "pod":
-		po := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: kollektor.Spec.Resource.Name}}
-		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace}, &po)
+		po := corev1.Pod{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace, Name: kollektor.Spec.Resource.Name}, &po)
 		if chartScan {
 			labels = po.Labels
 		}
 		container = po.Spec.Containers
 	default:
-		po := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: kollektor.Spec.Resource.Name}}
-		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace}, &po)
+		po := corev1.Pod{}
+		err = r.Get(ctx, types.NamespacedName{Namespace: kollektor.Namespace, Name: kollektor.Spec.Resource.Name}, &po)
 		if chartScan {
 			labels = po.Labels
 		}
@@ -160,9 +175,11 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		conditions = metav1.Condition{
 			Status: "False",
 			Type:   "Failed",
-			Reason: err.Error(),
 		}
 		kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
+		if len(kollektor.Status.Conditions) > 3 {
+			kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
+		}
 		kollektor.Status.IsLatest = "Unknown"
 		err = r.Status().Update(ctx, kollektor)
 		if err != nil {
@@ -244,6 +261,8 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		scrapeIntervalUnit = time.Hour
 	}
 
+	log.Info((time.Duration(scrapeIntervalTime) * scrapeIntervalUnit).String())
+
 	if isLatest {
 		log.Info(kollektor.Spec.Resource.Name + " image is matching latest version: " + ossVersion)
 		conditions = metav1.Condition{
@@ -251,6 +270,9 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			Type:   "Versions are matching: " + ossVersion,
 		}
 		kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
+		if len(kollektor.Status.Conditions) > 3 {
+			kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
+		}
 		kollektor.Status.Current = imageVersion
 		kollektor.Status.Latest = ossVersion
 		kollektor.Status.IsLatest = "True"
@@ -272,6 +294,9 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		Type:   "Versions are different: " + ossVersion + " vs " + imageVersion,
 	}
 	kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
+	if len(kollektor.Status.Conditions) > 3 {
+		kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
+	}
 	kollektor.Status.Current = imageVersion
 	kollektor.Status.Latest = ossVersion
 	kollektor.Status.IsLatest = "False"
