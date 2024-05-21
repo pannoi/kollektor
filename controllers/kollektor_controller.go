@@ -198,11 +198,19 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if isLatest {
 		log.Info(kollektor.Spec.Resource.Name + " image is matching latest version: " + ossVersion)
+		kollektor.Status.Latest = ossVersion
+		kollektor.Status.Current = imageVersion
+		kollektor.Status.IsLatest = "True"
+		err = r.Status().Update(ctx, kollektor)
 		return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, err
 	}
+	kollektor.Status.Latest = ossVersion
+	kollektor.Status.Current = imageVersion
+	kollektor.Status.IsLatest = "False"
 
 	if kollektor.Status.Latest == ossVersion {
 		log.Info("No new releases detected for " + kollektor.Name)
+		r.Status().Update(ctx, kollektor)
 		return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, nil
 	}
 
@@ -254,6 +262,7 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
+	r.Status().Update(ctx, kollektor)
 	return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, nil
 }
 
