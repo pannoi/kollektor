@@ -2,7 +2,7 @@ operator:
   replicas: 1
   revisionHistoryLimit: 1
   image: pannoi/kollektor
-  version: 1.0.2
+  version: 1.0.3
   config:
     scrape:
       githubTokenSecret: ""
