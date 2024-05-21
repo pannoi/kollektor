@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -105,10 +106,13 @@ func GetProjectVersion(repo string) (string, error) {
 	}
 
 	var version string
-	if _, ok := release["name"].(string); ok {
-		version = release["name"].(string)
+	if name, ok := release["name"].(string); ok && name != "" {
+		version = name
+	} else if tagName, ok := release["tag_name"].(string); ok && tagName != "" {
+		version = tagName
 	} else {
-		version = release["tag_name"].(string)
+		fmt.Println(release)
+		return "", fmt.Errorf("no valid release name or tag found in response")
 	}
 
 	index := strings.Index(version, " ")

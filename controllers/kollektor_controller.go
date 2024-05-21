@@ -12,7 +12,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,43 +40,48 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	log.Info("Run version scan for: " + kollektor.Name)
-	var conditions metav1.Condition
-	conditions = metav1.Condition{
-		Status: "True",
-		Type:   "Init Scan",
-	}
-	kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
-	if len(kollektor.Status.Conditions) > 3 {
-		kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
-	}
-	kollektor.Status.IsLatest = "Unknown"
-	err = r.Status().Update(ctx, kollektor)
-	if err != nil {
-		log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
-	}
 
 	if kollektor.Spec.Source.Repo == "" {
 		log.Info("Source repo cannot be nil")
 		return ctrl.Result{Requeue: false}, err
 	}
 
+	var scrapeIntervalUnitStr, scrapeIntervalTimeStr string
+	if os.Getenv("SCRAPE_INTERVAL") != "" {
+		for _, char := range os.Getenv("SCRAPE_INTERVAL") {
+			if unicode.IsDigit(char) {
+				scrapeIntervalTimeStr += string(char)
+			} else {
+				scrapeIntervalUnitStr += string(char)
+			}
+		}
+	} else {
+		scrapeIntervalTimeStr = "1"
+		scrapeIntervalUnitStr = "h"
+	}
+
+	var scrapeIntervalUnit time.Duration
+	scrapeIntervalTime, _ := strconv.Atoi(scrapeIntervalTimeStr)
+
+	switch scrapeIntervalUnitStr {
+	case "s":
+		scrapeIntervalUnit = time.Second
+	case "m":
+		scrapeIntervalUnit = time.Minute
+	case "h":
+		scrapeIntervalUnit = time.Hour
+	case "d":
+		scrapeIntervalUnit = 24 * time.Hour
+	case "w":
+		scrapeIntervalUnit = 7 * 24 * time.Hour
+	default:
+		scrapeIntervalUnit = time.Hour
+	}
+
 	ossVersion, err := utils.GetProjectVersion(kollektor.Spec.Source.Repo)
 	if err != nil {
 		log.Error(err, "Failed to scan version: "+kollektor.Spec.Source.Repo)
-		conditions = metav1.Condition{
-			Status: "False",
-			Type:   "Failed",
-		}
-		kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
-		if len(kollektor.Status.Conditions) > 3 {
-			kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
-		}
-		kollektor.Status.IsLatest = "Unknown"
-		err = r.Status().Update(ctx, kollektor)
-		if err != nil {
-			log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
-		}
-		return ctrl.Result{Requeue: false}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, err
 	}
 
 	var chartScan bool
@@ -91,37 +95,11 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		chartVerion, err = utils.GetHelmChartVersion(kollektor.Spec.Source.ChartRepo)
 		if err != nil {
 			log.Error(err, "Failed to scan chart version: "+kollektor.Spec.Source.ChartRepo)
-			conditions = metav1.Condition{
-				Status: "False",
-				Type:   "Failed",
-			}
-			kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
-			if len(kollektor.Status.Conditions) > 3 {
-				kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
-			}
-			kollektor.Status.IsLatest = "Unknown"
-			err = r.Status().Update(ctx, kollektor)
-			if err != nil {
-				log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
-			}
-			return ctrl.Result{Requeue: false}, nil
+			return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, nil
 		}
 	}
 
 	log.Info("Version gathered " + kollektor.Name)
-	conditions = metav1.Condition{
-		Status: "True",
-		Type:   "Version gathered: " + ossVersion,
-	}
-	kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
-	if len(kollektor.Status.Conditions) > 3 {
-		kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
-	}
-	kollektor.Status.IsLatest = "Unknown"
-	err = r.Status().Update(ctx, kollektor)
-	if err != nil {
-		log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
-	}
 
 	var container []corev1.Container
 	var labels map[string]string
@@ -172,20 +150,7 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	if err != nil {
 		log.Error(err, kollektor.Spec.Resource.Type+" not found: "+kollektor.Spec.Resource.Name)
-		conditions = metav1.Condition{
-			Status: "False",
-			Type:   "Failed",
-		}
-		kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
-		if len(kollektor.Status.Conditions) > 3 {
-			kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
-		}
-		kollektor.Status.IsLatest = "Unknown"
-		err = r.Status().Update(ctx, kollektor)
-		if err != nil {
-			log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
-		}
-		return ctrl.Result{Requeue: false}, err
+		return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, err
 	}
 
 	var containerName string
@@ -229,58 +194,11 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	var scrapeIntervalUnitStr, scrapeIntervalTimeStr string
-	if os.Getenv("SCRAPE_INTERVAL") != "" {
-		for _, char := range os.Getenv("SCRAPE_INTERVAL") {
-			if unicode.IsDigit(char) {
-				scrapeIntervalTimeStr += string(char)
-			} else {
-				scrapeIntervalUnitStr += string(char)
-			}
-		}
-	} else {
-		scrapeIntervalTimeStr = "1"
-		scrapeIntervalUnitStr = "h"
-	}
-
-	var scrapeIntervalUnit time.Duration
-	scrapeIntervalTime, _ := strconv.Atoi(scrapeIntervalTimeStr)
-
-	switch scrapeIntervalUnitStr {
-	case "s":
-		scrapeIntervalUnit = time.Second
-	case "m":
-		scrapeIntervalUnit = time.Minute
-	case "h":
-		scrapeIntervalUnit = time.Hour
-	case "d":
-		scrapeIntervalUnit = 24 * time.Hour
-	case "w":
-		scrapeIntervalUnit = 7 * 24 * time.Hour
-	default:
-		scrapeIntervalUnit = time.Hour
-	}
-
 	log.Info((time.Duration(scrapeIntervalTime) * scrapeIntervalUnit).String())
 
 	if isLatest {
 		log.Info(kollektor.Spec.Resource.Name + " image is matching latest version: " + ossVersion)
-		conditions = metav1.Condition{
-			Status: "True",
-			Type:   "Versions are matching: " + ossVersion,
-		}
-		kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
-		if len(kollektor.Status.Conditions) > 3 {
-			kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
-		}
-		kollektor.Status.Current = imageVersion
-		kollektor.Status.Latest = ossVersion
-		kollektor.Status.IsLatest = "True"
-		err = r.Status().Update(ctx, kollektor)
-		if err != nil {
-			log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
-		}
-		return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: time.Duration(scrapeIntervalTime) * scrapeIntervalUnit}, err
 	}
 
 	if kollektor.Status.Latest == ossVersion {
@@ -289,21 +207,6 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	log.Info(kollektor.Spec.Resource.Name + " image is not matching latest version: " + ossVersion)
-	conditions = metav1.Condition{
-		Status: "True",
-		Type:   "Versions are different: " + ossVersion + " vs " + imageVersion,
-	}
-	kollektor.Status.Conditions = append(kollektor.Status.Conditions, conditions)
-	if len(kollektor.Status.Conditions) > 3 {
-		kollektor.Status.Conditions = kollektor.Status.Conditions[1:]
-	}
-	kollektor.Status.Current = imageVersion
-	kollektor.Status.Latest = ossVersion
-	kollektor.Status.IsLatest = "False"
-	err = r.Status().Update(ctx, kollektor)
-	if err != nil {
-		log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
-	}
 
 	slackIntegrationEnabled, _ := strconv.ParseBool(os.Getenv("SLACK_INTEGRATION_ENABLED"))
 	if slackIntegrationEnabled {
