@@ -77,7 +77,7 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
 		}
-		return ctrl.Result{Requeue: false}, err
+		return ctrl.Result{Requeue: false}, nil
 	}
 
 	var chartScan bool
@@ -104,7 +104,7 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			if err != nil {
 				log.Error(err, "Failed to update status for Kollektor: "+kollektor.Name)
 			}
-			return ctrl.Result{Requeue: false}, err
+			return ctrl.Result{Requeue: false}, nil
 		}
 	}
 
