@@ -316,17 +316,19 @@ func (r *KollektorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if !strings.HasPrefix(projectReleaseUrl, "https://") {
 			projectReleaseUrl = "https://" + projectReleaseUrl
 		}
-		projectReleaseTitle := fmt.Sprintf("🚀 <%s|New Release> of %s | %s => %s in cluster: %s!🚀",
-			projectReleaseUrl,
-			kollektor.Name,
-			imageVersion,
-			ossVersion,
-			os.Getenv("CLUSTER_NAME"),
-		)
-		projectReleaseText := fmt.Sprintf("Release notes: %s", releaseNotes)
-		err = utils.SendSlackMessage(os.Getenv("SLACK_WEBHOOK_URL"), projectReleaseTitle, projectReleaseText)
-		if err != nil {
-			log.Error(err, "Failed send slack notification")
+		if ossVersion != kollektor.Status.Latest {
+			projectReleaseTitle := fmt.Sprintf("🚀 <%s|New Release> of %s | %s => %s in cluster: %s!🚀",
+				projectReleaseUrl,
+				kollektor.Name,
+				imageVersion,
+				ossVersion,
+				os.Getenv("CLUSTER_NAME"),
+			)
+			projectReleaseText := fmt.Sprintf("Release notes: %s", releaseNotes)
+			err = utils.SendSlackMessage(os.Getenv("SLACK_WEBHOOK_URL"), projectReleaseTitle, projectReleaseText)
+			if err != nil {
+				log.Error(err, "Failed send slack notification")
+			}
 		}
 		if chartScan && !isChartLatest {
 			chartReleaseNotes, chartReleaseUrl, err := utils.GetHelmReleaseNotes(kollektor.Spec.Source.ChartRepo)
